@@ -27,7 +27,10 @@ VintageLookAndFeel::VintageLookAndFeel()
 void VintageLookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int w, int h,
     float position, float start, float end, juce::Slider& slider)
 {
-    auto r = juce::Rectangle<float>((float)x, (float)y, (float)w, (float)h).reduced(9.f);
+    const auto diameter = (float) juce::jmin(w, h);
+    auto r = juce::Rectangle<float>(diameter, diameter)
+                 .withCentre(juce::Rectangle<float>((float)x, (float)y, (float)w, (float)h).getCentre())
+                 .reduced(7.f);
     const auto centre = r.getCentre();
     const auto angle = start + position * (end - start);
     const auto accent = slider.getProperties().getWithDefault("accent", false) ? Palette::turquoise : Palette::brass;
@@ -46,8 +49,10 @@ void VintageLookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int w
 void VintageLookAndFeel::drawToggleButton(juce::Graphics& g, juce::ToggleButton& button, bool, bool)
 {
     auto r = button.getLocalBounds().toFloat().reduced(2.f);
+    const auto selected = (bool) button.getProperties().getWithDefault("selected", false);
     g.setColour(button.getToggleState() ? Palette::acid : Palette::charcoal); g.fillRoundedRectangle(r, 4.f);
-    g.setColour(button.getToggleState() ? Palette::charcoal : Palette::silver); g.drawRoundedRectangle(r, 4.f, 1.5f);
+    g.setColour(button.getToggleState() ? Palette::charcoal : (selected ? Palette::turquoise : Palette::silver));
+    g.drawRoundedRectangle(r, 4.f, selected ? 2.4f : 1.5f);
     g.setColour(button.getToggleState() ? Palette::charcoal : Palette::cream);
     g.setFont(juce::FontOptions(11.f).withStyle("Bold")); g.drawText(button.getButtonText(), r, juce::Justification::centred);
 }
@@ -95,6 +100,7 @@ VintageDualFilterAudioProcessorEditor::FilterPanel::FilterPanel(juce::AudioProce
     for (size_t i = 0; i < effectButtons.size(); ++i)
     {
         effectButtons[i].setButtonText(effectNames[i]);
+        effectButtons[i].onClick = [this, i] { selectEffect((int) i); };
         effectButtonAttachments[i] = std::make_unique<ButtonAttachment>(state, Params::id(filter, effectIds[i]), effectButtons[i]);
     }
     const std::array<juce::String, 12> effectNamesFull{
@@ -118,6 +124,32 @@ VintageDualFilterAudioProcessorEditor::FilterPanel::FilterPanel(juce::AudioProce
     distortionTypeLabel.setText("TYPE", juce::dontSendNotification);
     distortionTypeLabel.setJustificationType(juce::Justification::centred);
     distortionTypeAttachment = std::make_unique<ComboAttachment>(state, Params::id(filter, "distortion.type"), distortionType);
+    selectEffect(0);
+}
+
+void VintageDualFilterAudioProcessorEditor::FilterPanel::selectEffect(int effect)
+{
+    selectedEffect = juce::jlimit(0, 2, effect);
+    for (size_t i = 0; i < effectButtons.size(); ++i)
+    {
+        effectButtons[i].getProperties().set("selected", (int) i == selectedEffect);
+        effectButtons[i].repaint();
+    }
+    const std::array<int, 3> starts{0, 4, 9};
+    const std::array<int, 3> counts{4, 5, 3};
+    for (size_t i = 0; i < effectKnobs.size(); ++i)
+    {
+        effectKnobs[i].setVisible(false);
+        effectLabels[i].setVisible(false);
+    }
+    for (int i = 0; i < counts[(size_t) selectedEffect]; ++i)
+    {
+        const auto index = (size_t)(starts[(size_t) selectedEffect] + i);
+        effectKnobs[index].setVisible(true);
+        effectLabels[index].setVisible(true);
+    }
+    distortionType.setVisible(selectedEffect == 2);
+    distortionTypeLabel.setVisible(selectedEffect == 2);
 }
 
 void VintageDualFilterAudioProcessorEditor::FilterPanel::addTo(juce::Component& parent)
@@ -128,6 +160,7 @@ void VintageDualFilterAudioProcessorEditor::FilterPanel::addTo(juce::Component& 
     for (auto& button : effectButtons) parent.addAndMakeVisible(button);
     for (size_t i = 0; i < effectKnobs.size(); ++i) { parent.addAndMakeVisible(effectLabels[i]); parent.addAndMakeVisible(effectKnobs[i]); }
     parent.addAndMakeVisible(distortionTypeLabel); parent.addAndMakeVisible(distortionType);
+    selectEffect(selectedEffect);
 }
 
 void VintageDualFilterAudioProcessorEditor::FilterPanel::layout(juce::Rectangle<int> area)
@@ -145,7 +178,7 @@ void VintageDualFilterAudioProcessorEditor::FilterPanel::layout(juce::Rectangle<
         auto cell = selectorsArea.removeFromLeft(selectorsArea.getWidth() / (int)(selectors.size() - i));
         selectorLabels[i].setBounds(cell.removeFromTop(18)); selectors[i].setBounds(cell.reduced(3, 1));
     }
-    auto filterKnobs = area.removeFromTop(220);
+    auto filterKnobs = area.removeFromTop(190);
     for (int row = 0; row < 2; ++row)
     {
         auto rowArea = filterKnobs.removeFromTop(filterKnobs.getHeight() / (2 - row));
@@ -156,32 +189,34 @@ void VintageDualFilterAudioProcessorEditor::FilterPanel::layout(juce::Rectangle<
             knobLabels[index].setBounds(cell.removeFromTop(18)); knobs[index].setBounds(cell.reduced(2));
         }
     }
+    auto tabs = area.removeFromTop(38);
+    for (int tab = 0; tab < 3; ++tab)
+    {
+        auto cell = tabs.removeFromLeft(tabs.getWidth() / (3 - tab));
+        effectButtons[(size_t) tab].setBounds(cell.reduced(3, 4));
+    }
     const std::array<int, 3> starts{0, 4, 9};
     const std::array<int, 3> counts{4, 5, 3};
-    for (int row = 0; row < 3; ++row)
+    auto controls = area.reduced(2, 3);
+    if (selectedEffect == 2)
     {
-        auto rowArea = area.removeFromTop(area.getHeight() / (3 - row)).reduced(2, 3);
-        effectButtons[(size_t) row].setBounds(rowArea.removeFromLeft(86).reduced(3, 16));
-        if (row == 2)
-        {
-            auto typeArea = rowArea.removeFromLeft(78);
-            distortionTypeLabel.setBounds(typeArea.removeFromTop(18));
-            distortionType.setBounds(typeArea.removeFromTop(25));
-        }
-        for (int col = 0; col < counts[(size_t) row]; ++col)
-        {
-            const auto index = (size_t)(starts[(size_t) row] + col);
-            auto cell = rowArea.removeFromLeft(rowArea.getWidth() / (counts[(size_t) row] - col));
-            effectLabels[index].setBounds(cell.removeFromTop(16));
-            effectKnobs[index].setBounds(cell.reduced(1));
-        }
+        auto typeArea = controls.removeFromLeft(76);
+        distortionTypeLabel.setBounds(typeArea.removeFromTop(18));
+        distortionType.setBounds(typeArea.removeFromTop(26));
+    }
+    for (int col = 0; col < counts[(size_t) selectedEffect]; ++col)
+    {
+        const auto index = (size_t)(starts[(size_t) selectedEffect] + col);
+        auto cell = controls.removeFromLeft(controls.getWidth() / (counts[(size_t) selectedEffect] - col));
+        effectLabels[index].setBounds(cell.removeFromTop(16));
+        effectKnobs[index].setBounds(cell.reduced(1));
     }
 }
 
 VintageDualFilterAudioProcessorEditor::VintageDualFilterAudioProcessorEditor(VintageDualFilterAudioProcessor& p)
     : AudioProcessorEditor(&p), processor(p)
 {
-    setLookAndFeel(&look); setResizable(true, true); setResizeLimits(1100, 760, 1700, 1100);
+    setLookAndFeel(&look); setResizable(true, true); setResizeLimits(920, 640, 1320, 880);
     title.setText("J A R I F I L T E R", juce::dontSendNotification);
     title.setJustificationType(juce::Justification::centred); title.setFont(juce::FontOptions(28.f).withStyle("Bold"));
     subtitle.setText("ANALOG CHARACTER PROCESSOR", juce::dontSendNotification); subtitle.setJustificationType(juce::Justification::centred);
@@ -208,7 +243,7 @@ VintageDualFilterAudioProcessorEditor::VintageDualFilterAudioProcessorEditor(Vin
     const std::array<juce::String, 3> killNames{"LOW KILL", "MID KILL", "HIGH KILL"};
     const std::array<juce::String, 3> killIds{"kill.low", "kill.mid", "kill.high"};
     for (size_t i = 0; i < kills.size(); ++i) { kills[i].setButtonText(killNames[i]); addAndMakeVisible(kills[i]); killAttachments[i] = std::make_unique<ButtonAttachment>(processor.parameters, killIds[i], kills[i]); }
-    setSize(1420, 900);
+    setSize(1040, 720);
 }
 
 VintageDualFilterAudioProcessorEditor::~VintageDualFilterAudioProcessorEditor() { setLookAndFeel(nullptr); }
@@ -224,8 +259,9 @@ void VintageDualFilterAudioProcessorEditor::paint(juce::Graphics& g)
     for (int y = 18; y < getHeight(); y += 5) g.drawHorizontalLine(y, 15.f, (float)getWidth() - 15.f);
     const auto panelColour = processor.getCurrentProgram() == 2 ? Palette::acid : Palette::cream.withAlpha(0.42f);
     g.setColour(panelColour);
-    g.fillRoundedRectangle(juce::Rectangle<float>(28.f, 92.f, (float)getWidth() * 0.43f, (float)getHeight() - 185.f), 8.f);
-    g.fillRoundedRectangle(juce::Rectangle<float>((float)getWidth() * 0.57f, 92.f, (float)getWidth() * 0.43f - 28.f, (float)getHeight() - 185.f), 8.f);
+    const auto panelWidth = ((float)getWidth() - 56.f - juce::jmax(145.f, (float)getWidth() / 8.f)) * 0.5f;
+    g.fillRoundedRectangle(juce::Rectangle<float>(28.f, 92.f, panelWidth, (float)getHeight() - 185.f), 8.f);
+    g.fillRoundedRectangle(juce::Rectangle<float>((float)getWidth() - 28.f - panelWidth, 92.f, panelWidth, (float)getHeight() - 185.f), 8.f);
     for (auto p : {juce::Point<float>{25.f, 25.f}, juce::Point<float>{(float)getWidth()-25.f, 25.f},
                    juce::Point<float>{25.f, (float)getHeight()-25.f}, juce::Point<float>{(float)getWidth()-25.f, (float)getHeight()-25.f}})
     { g.setColour(Palette::charcoal); g.fillEllipse(juce::Rectangle<float>(10.f, 10.f).withCentre(p)); g.setColour(Palette::brass); g.drawEllipse(juce::Rectangle<float>(10.f, 10.f).withCentre(p), 1.f); }
