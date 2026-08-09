@@ -52,10 +52,12 @@ private:
 
     VintageDualFilterAudioProcessor& processor;
     VintageLookAndFeel look;
-    juce::Label title, subtitle, routingLabel, presetLabel;
+    juce::Label title, subtitle, routingLabel, presetLabel, userPresetLabel;
     std::array<std::unique_ptr<FilterPanel>, 2> filterPanels;
     juce::ComboBox routing;
     juce::ComboBox presets;
+    juce::ComboBox userPresets;
+    juce::TextButton saveUserPreset{"SAVE"}, loadUserPreset{"LOAD"};
     std::array<juce::Slider, 2> masterKnobs;
     std::array<juce::Label, 2> masterLabels;
     std::array<std::unique_ptr<SliderAttachment>, 2> masterAttachments;
