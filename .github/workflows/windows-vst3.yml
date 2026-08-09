@@ -23,6 +23,17 @@ jobs:
       - name: Build JARIFILTER
         run: cmake --build build --config Release --parallel
 
+      - name: Smoke-test editor startup
+        shell: pwsh
+        run: |
+          $exe = "build/JARIFILTER_artefacts/Release/Standalone/JARIFILTER.exe"
+          $process = Start-Process -FilePath $exe -PassThru
+          Start-Sleep -Seconds 8
+          if ($process.HasExited) {
+            throw "JARIFILTER exited during startup with code $($process.ExitCode)"
+          }
+          Stop-Process -Id $process.Id -Force
+
       - name: Upload JARIFILTER VST3
         uses: actions/upload-artifact@v4
         with:
