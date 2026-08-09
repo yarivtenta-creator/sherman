@@ -87,7 +87,7 @@ private:
             auto read = (delayWrite - delaySamples + delayBuffer.getNumSamples()) % delayBuffer.getNumSamples();
             for (int i = 0; i < buffer.getNumSamples(); ++i)
             {
-                const auto delayed = delayTone[(size_t) ch].processSample(line[read]);
+                const auto delayed = delayTone[(size_t) ch].processor.processSample(line[read]);
                 line[(delayWrite + i) % delayBuffer.getNumSamples()] = output[i] + delayed * feedback;
                 output[i] = output[i] * (1.f - wet) + delayed * wet;
                 read = (read + 1) % delayBuffer.getNumSamples();
@@ -155,7 +155,7 @@ private:
                     case DistortionType::hardClip: shaped = juce::jlimit(-1.f, 1.f, x); break;
                     case DistortionType::diode: shaped = x >= 0.f ? 1.f - std::exp(-x) : -0.55f * (1.f - std::exp(x)); break;
                 }
-                const auto filtered = distortionTone[(size_t) ch].processSample(shaped);
+                const auto filtered = distortionTone[(size_t) ch].processor.processSample(shaped);
                 samples[i] = dryBuffer.getSample(ch, i) * (1.f - wet) + filtered * wet;
             }
         }
