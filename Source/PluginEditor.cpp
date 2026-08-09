@@ -127,7 +127,7 @@ void VintageDualFilterAudioProcessorEditor::FilterPanel::layout(juce::Rectangle<
 VintageDualFilterAudioProcessorEditor::VintageDualFilterAudioProcessorEditor(VintageDualFilterAudioProcessor& p)
     : AudioProcessorEditor(&p), processor(p)
 {
-    setLookAndFeel(&look); setResizable(true, true); setResizeLimits(900, 540, 1500, 900); setSize(1180, 660);
+    setLookAndFeel(&look); setResizable(true, true); setResizeLimits(900, 540, 1500, 900);
     title.setText("J A R I F I L T E R", juce::dontSendNotification);
     title.setJustificationType(juce::Justification::centred); title.setFont(juce::FontOptions(28.f).withStyle("Bold"));
     subtitle.setText("ANALOG CHARACTER PROCESSOR", juce::dontSendNotification); subtitle.setJustificationType(juce::Justification::centred);
@@ -154,6 +154,7 @@ VintageDualFilterAudioProcessorEditor::VintageDualFilterAudioProcessorEditor(Vin
     const std::array<juce::String, 3> killNames{"LOW KILL", "MID KILL", "HIGH KILL"};
     const std::array<juce::String, 3> killIds{"kill.low", "kill.mid", "kill.high"};
     for (size_t i = 0; i < kills.size(); ++i) { kills[i].setButtonText(killNames[i]); addAndMakeVisible(kills[i]); killAttachments[i] = std::make_unique<ButtonAttachment>(processor.parameters, killIds[i], kills[i]); }
+    setSize(1180, 660);
 }
 
 VintageDualFilterAudioProcessorEditor::~VintageDualFilterAudioProcessorEditor() { setLookAndFeel(nullptr); }
@@ -182,7 +183,8 @@ void VintageDualFilterAudioProcessorEditor::resized()
     auto bottom = area.removeFromBottom(58); area.removeFromBottom(10);
     const auto centreWidth = juce::jmax(145, area.getWidth() / 8);
     auto left = area.removeFromLeft((area.getWidth() - centreWidth) / 2); auto centre = area.removeFromLeft(centreWidth); auto right = area;
-    filterPanels[0]->layout(left.reduced(8)); filterPanels[1]->layout(right.reduced(8));
+    if (filterPanels[0] != nullptr) filterPanels[0]->layout(left.reduced(8));
+    if (filterPanels[1] != nullptr) filterPanels[1]->layout(right.reduced(8));
     presetLabel.setBounds(centre.removeFromTop(22)); presets.setBounds(centre.removeFromTop(32).reduced(5, 2)); centre.removeFromTop(12);
     routingLabel.setBounds(centre.removeFromTop(22)); routing.setBounds(centre.removeFromTop(32).reduced(5, 2));
     centre.removeFromTop(8);
