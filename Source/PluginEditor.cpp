@@ -105,7 +105,7 @@ VintageDualFilterAudioProcessorEditor::FilterPanel::FilterPanel(juce::AudioProce
     }
     const std::array<juce::String, 12> effectNamesFull{
         "TIME", "FEEDBACK", "TONE", "MIX",
-        "SIZE", "DAMPING", "PRE-DELAY", "WIDTH", "MIX",
+        "SIZE", "TONE", "PRE-DELAY", "WIDTH", "MIX",
         "DRIVE", "TONE", "MIX"};
     const std::array<juce::String, 12> effectIdsFull{
         "delay.time", "delay.feedback", "delay.tone", "delay.mix",
@@ -135,8 +135,8 @@ void VintageDualFilterAudioProcessorEditor::FilterPanel::selectEffect(int effect
         effectButtons[i].getProperties().set("selected", (int) i == selectedEffect);
         effectButtons[i].repaint();
     }
-    const std::array<int, 3> starts{0, 4, 9};
-    const std::array<int, 3> counts{4, 5, 3};
+    const std::array<std::array<int, 5>, 3> indices{{{{0, 1, 2, 3, -1}}, {{4, 5, 8, -1, -1}}, {{9, 10, 11, -1, -1}}}};
+    const std::array<int, 3> counts{4, 3, 3};
     for (size_t i = 0; i < effectKnobs.size(); ++i)
     {
         effectKnobs[i].setVisible(false);
@@ -144,7 +144,7 @@ void VintageDualFilterAudioProcessorEditor::FilterPanel::selectEffect(int effect
     }
     for (int i = 0; i < counts[(size_t) selectedEffect]; ++i)
     {
-        const auto index = (size_t)(starts[(size_t) selectedEffect] + i);
+        const auto index = (size_t) indices[(size_t) selectedEffect][(size_t) i];
         effectKnobs[index].setVisible(true);
         effectLabels[index].setVisible(true);
     }
@@ -195,8 +195,8 @@ void VintageDualFilterAudioProcessorEditor::FilterPanel::layout(juce::Rectangle<
         auto cell = tabs.removeFromLeft(tabs.getWidth() / (3 - tab));
         effectButtons[(size_t) tab].setBounds(cell.reduced(3, 4));
     }
-    const std::array<int, 3> starts{0, 4, 9};
-    const std::array<int, 3> counts{4, 5, 3};
+    const std::array<std::array<int, 5>, 3> indices{{{{0, 1, 2, 3, -1}}, {{4, 5, 8, -1, -1}}, {{9, 10, 11, -1, -1}}}};
+    const std::array<int, 3> counts{4, 3, 3};
     auto controls = area.reduced(2, 3);
     if (selectedEffect == 2)
     {
@@ -206,7 +206,7 @@ void VintageDualFilterAudioProcessorEditor::FilterPanel::layout(juce::Rectangle<
     }
     for (int col = 0; col < counts[(size_t) selectedEffect]; ++col)
     {
-        const auto index = (size_t)(starts[(size_t) selectedEffect] + col);
+        const auto index = (size_t) indices[(size_t) selectedEffect][(size_t) col];
         auto cell = controls.removeFromLeft(controls.getWidth() / (counts[(size_t) selectedEffect] - col));
         effectLabels[index].setBounds(cell.removeFromTop(16));
         effectKnobs[index].setBounds(cell.reduced(1));
@@ -217,17 +217,42 @@ VintageDualFilterAudioProcessorEditor::VintageDualFilterAudioProcessorEditor(Vin
     : AudioProcessorEditor(&p), processor(p)
 {
     setLookAndFeel(&look); setResizable(true, true); setResizeLimits(920, 640, 1320, 880);
-    title.setText("J A R I F I L T E R", juce::dontSendNotification);
+    title.setText("Y A R I F I L T E R", juce::dontSendNotification);
     title.setJustificationType(juce::Justification::centred); title.setFont(juce::FontOptions(28.f).withStyle("Bold"));
     subtitle.setText("ANALOG CHARACTER PROCESSOR", juce::dontSendNotification); subtitle.setJustificationType(juce::Justification::centred);
     routingLabel.setText("SIGNAL FLOW", juce::dontSendNotification); routingLabel.setJustificationType(juce::Justification::centred);
     presetLabel.setText("FACTORY COLOUR", juce::dontSendNotification); presetLabel.setJustificationType(juce::Justification::centred);
+    userPresetLabel.setText("USER PRESET", juce::dontSendNotification); userPresetLabel.setJustificationType(juce::Justification::centred);
     addAndMakeVisible(title); addAndMakeVisible(subtitle); addAndMakeVisible(routingLabel); addAndMakeVisible(routing); addAndMakeVisible(presetLabel); addAndMakeVisible(presets);
+    addAndMakeVisible(userPresetLabel); addAndMakeVisible(userPresets); addAndMakeVisible(saveUserPreset); addAndMakeVisible(loadUserPreset);
     routing.addItemList({"SERIES", "PARALLEL"}, 1);
     routingAttachment = std::make_unique<ComboAttachment>(processor.parameters, "routing", routing);
     for (int i = 0; i < processor.getNumPrograms(); ++i) presets.addItem(processor.getProgramName(i), i + 1);
     presets.setSelectedId(processor.getCurrentProgram() + 1, juce::dontSendNotification);
     presets.onChange = [this] { processor.setCurrentProgram(presets.getSelectedId() - 1); repaint(); };
+    userPresets.addItemList({"USER 1", "USER 2", "USER 3", "USER 4"}, 1);
+    userPresets.setSelectedId(1, juce::dontSendNotification);
+    saveUserPreset.onClick = [this]
+    {
+        processor.saveUserPreset(userPresets.getSelectedId());
+        userPresetLabel.setText("USER PRESET  •  SAVED", juce::dontSendNotification);
+    };
+    loadUserPreset.onClick = [this]
+    {
+        if (processor.hasUserPreset(userPresets.getSelectedId()))
+        {
+            processor.loadUserPreset(userPresets.getSelectedId());
+            presets.setSelectedId(0, juce::dontSendNotification);
+            userPresetLabel.setText("USER PRESET  •  LOADED", juce::dontSendNotification);
+            repaint();
+        }
+        else userPresetLabel.setText("USER PRESET  •  EMPTY", juce::dontSendNotification);
+    };
+    for (auto* button : {&saveUserPreset, &loadUserPreset})
+    {
+        button->setColour(juce::TextButton::buttonColourId, Palette::charcoal);
+        button->setColour(juce::TextButton::textColourOffId, Palette::cream);
+    }
     const std::array<juce::String, 2> masterIds{"inputGain", "outputGain"};
     const std::array<juce::String, 2> masterNames{"INPUT", "OUTPUT"};
     for (size_t i = 0; i < masterKnobs.size(); ++i)
@@ -257,11 +282,15 @@ void VintageDualFilterAudioProcessorEditor::paint(juce::Graphics& g)
     g.setColour(Palette::brass); g.drawRoundedRectangle(chassis, 10.f, 2.f);
     g.setColour(juce::Colours::black.withAlpha(0.12f));
     for (int y = 18; y < getHeight(); y += 5) g.drawHorizontalLine(y, 15.f, (float)getWidth() - 15.f);
-    const auto panelColour = processor.getCurrentProgram() == 2 ? Palette::acid : Palette::cream.withAlpha(0.42f);
+    const auto panelColour = processor.getCurrentProgram() == 2 ? Palette::acid : Palette::silver.brighter(0.12f).withAlpha(0.72f);
     g.setColour(panelColour);
     const auto panelWidth = ((float)getWidth() - 56.f - juce::jmax(145.f, (float)getWidth() / 8.f)) * 0.5f;
-    g.fillRoundedRectangle(juce::Rectangle<float>(28.f, 92.f, panelWidth, (float)getHeight() - 185.f), 8.f);
-    g.fillRoundedRectangle(juce::Rectangle<float>((float)getWidth() - 28.f - panelWidth, 92.f, panelWidth, (float)getHeight() - 185.f), 8.f);
+    const auto leftPanel = juce::Rectangle<float>(28.f, 92.f, panelWidth, (float)getHeight() - 185.f);
+    const auto rightPanel = juce::Rectangle<float>((float)getWidth() - 28.f - panelWidth, 92.f, panelWidth, (float)getHeight() - 185.f);
+    g.fillRoundedRectangle(leftPanel, 8.f); g.fillRoundedRectangle(rightPanel, 8.f);
+    g.setColour(juce::Colours::white.withAlpha(0.7f));
+    g.drawRoundedRectangle(leftPanel.reduced(1.f), 8.f, 1.2f);
+    g.drawRoundedRectangle(rightPanel.reduced(1.f), 8.f, 1.2f);
     for (auto p : {juce::Point<float>{25.f, 25.f}, juce::Point<float>{(float)getWidth()-25.f, 25.f},
                    juce::Point<float>{25.f, (float)getHeight()-25.f}, juce::Point<float>{(float)getWidth()-25.f, (float)getHeight()-25.f}})
     { g.setColour(Palette::charcoal); g.fillEllipse(juce::Rectangle<float>(10.f, 10.f).withCentre(p)); g.setColour(Palette::brass); g.drawEllipse(juce::Rectangle<float>(10.f, 10.f).withCentre(p), 1.f); }
@@ -279,6 +308,12 @@ void VintageDualFilterAudioProcessorEditor::resized()
     presetLabel.setBounds(centre.removeFromTop(22)); presets.setBounds(centre.removeFromTop(32).reduced(5, 2)); centre.removeFromTop(12);
     routingLabel.setBounds(centre.removeFromTop(22)); routing.setBounds(centre.removeFromTop(32).reduced(5, 2));
     centre.removeFromTop(8);
+    userPresetLabel.setBounds(centre.removeFromTop(20));
+    userPresets.setBounds(centre.removeFromTop(28).reduced(5, 1));
+    auto userButtons = centre.removeFromTop(30);
+    saveUserPreset.setBounds(userButtons.removeFromLeft(userButtons.getWidth() / 2).reduced(3));
+    loadUserPreset.setBounds(userButtons.reduced(3));
+    centre.removeFromTop(5);
     auto masterArea = centre.removeFromTop(105);
     for (size_t i = 0; i < masterKnobs.size(); ++i)
     {
