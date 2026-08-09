@@ -38,8 +38,6 @@ public:
         preDelayBuffer.setSize(numChannels, (int) std::ceil(sampleRate * 0.25), false, true, true);
         dryBuffer.setSize(numChannels, maxBlockSize, false, false, true);
         reverbBuffer.setSize(numChannels, maxBlockSize, false, false, true);
-        for (auto& filter : delayTone) filter.prepare(spec);
-        for (auto& filter : distortionTone) filter.prepare(spec);
         reset();
     }
 
@@ -76,9 +74,9 @@ private:
             (int) std::round(settings.delayTimeMs * 0.001 * sampleRate));
         const auto feedback = juce::jlimit(0.f, 0.95f, settings.delayFeedback);
         const auto wet = juce::jlimit(0.f, 1.f, settings.delayMix);
-        const auto coefficients = juce::dsp::IIR::Coefficients<float>::makeLowPass(sampleRate,
+        const auto coefficients = juce::IIRCoefficients::makeLowPass(sampleRate,
             juce::jlimit(250.f, (float) sampleRate * 0.45f, settings.delayTone));
-        for (auto& filter : delayTone) filter.state = coefficients;
+        for (auto& filter : delayTone) filter.setCoefficients(coefficients);
 
         for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
         {
@@ -87,7 +85,7 @@ private:
             auto read = (delayWrite - delaySamples + delayBuffer.getNumSamples()) % delayBuffer.getNumSamples();
             for (int i = 0; i < buffer.getNumSamples(); ++i)
             {
-                const auto delayed = delayTone[(size_t) ch].processor.processSample(line[read]);
+                const auto delayed = delayTone[(size_t) ch].processSingleSampleRaw(line[read]);
                 line[(delayWrite + i) % delayBuffer.getNumSamples()] = output[i] + delayed * feedback;
                 output[i] = output[i] * (1.f - wet) + delayed * wet;
                 read = (read + 1) % delayBuffer.getNumSamples();
@@ -139,9 +137,9 @@ private:
         copyDry(buffer);
         const auto drive = juce::Decibels::decibelsToGain(juce::jlimit(0.f, 36.f, settings.distortionDrive));
         const auto wet = juce::jlimit(0.f, 1.f, settings.distortionMix);
-        const auto coefficients = juce::dsp::IIR::Coefficients<float>::makeLowPass(sampleRate,
+        const auto coefficients = juce::IIRCoefficients::makeLowPass(sampleRate,
             juce::jlimit(400.f, (float) sampleRate * 0.45f, settings.distortionTone));
-        for (auto& filter : distortionTone) filter.state = coefficients;
+        for (auto& filter : distortionTone) filter.setCoefficients(coefficients);
         for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
         {
             auto* samples = buffer.getWritePointer(ch);
@@ -155,7 +153,7 @@ private:
                     case DistortionType::hardClip: shaped = juce::jlimit(-1.f, 1.f, x); break;
                     case DistortionType::diode: shaped = x >= 0.f ? 1.f - std::exp(-x) : -0.55f * (1.f - std::exp(x)); break;
                 }
-                const auto filtered = distortionTone[(size_t) ch].processor.processSample(shaped);
+                const auto filtered = distortionTone[(size_t) ch].processSingleSampleRaw(shaped);
                 samples[i] = dryBuffer.getSample(ch, i) * (1.f - wet) + filtered * wet;
             }
         }
@@ -165,7 +163,6 @@ private:
     double sampleRate = 44100.0;
     int maxBlockSize = 512, numChannels = 2, delayWrite = 0, preDelayWrite = 0;
     juce::AudioBuffer<float> delayBuffer, preDelayBuffer, dryBuffer, reverbBuffer;
-    using ToneFilter = juce::dsp::ProcessorDuplicator<juce::dsp::IIR::Filter<float>, juce::dsp::IIR::Coefficients<float>>;
-    std::array<ToneFilter, 2> delayTone, distortionTone;
+    std::array<juce::IIRFilter, 2> delayTone, distortionTone;
     juce::Reverb reverb;
 };
