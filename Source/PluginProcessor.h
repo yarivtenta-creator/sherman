@@ -2,6 +2,7 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 #include "DSP/FilterEngine.h"
 #include "DSP/KillBandProcessor.h"
+#include "DSP/EffectChain.h"
 #include "Parameters.h"
 
 class VintageDualFilterAudioProcessor final : public juce::AudioProcessor
@@ -30,7 +31,9 @@ public:
 
 private:
     FilterEngine::Settings readSettings(int) const;
+    EffectChain::Settings readEffectSettings(int) const;
     std::array<FilterEngine, 2> filters;
+    std::array<EffectChain, 2> effects;
     KillBandProcessor killBands;
     juce::AudioBuffer<float> parallelBuffer;
     juce::dsp::DelayLine<float, juce::dsp::DelayLineInterpolationTypes::Linear> parallelLatencyCompensation{4096};

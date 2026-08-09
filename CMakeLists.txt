@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(JARIFILTER VERSION 0.1.0 LANGUAGES CXX)
+project(JARIFILTER VERSION 0.2.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -25,6 +25,7 @@ target_sources(JARIFILTER PRIVATE
     Source/PluginProcessor.cpp
     Source/PluginEditor.cpp
     Source/DSP/FilterEngine.cpp
+    Source/DSP/EffectChain.h
     Source/DSP/KillBandProcessor.h)
 
 target_include_directories(JARIFILTER PRIVATE Source)

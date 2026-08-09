@@ -39,6 +39,22 @@ void VintageDualFilterAudioProcessor::setCurrentProgram(int index)
         set(Params::id(filter, "resonance"), 0.707f);
         set(Params::id(filter, "thd"), 0.f);
         set(Params::id(filter, "mix"), 100.f);
+        set(Params::id(filter, "delay.enabled"), 0.f);
+        set(Params::id(filter, "delay.time"), 320.f);
+        set(Params::id(filter, "delay.feedback"), 35.f);
+        set(Params::id(filter, "delay.tone"), 6500.f);
+        set(Params::id(filter, "delay.mix"), 25.f);
+        set(Params::id(filter, "reverb.enabled"), 0.f);
+        set(Params::id(filter, "reverb.size"), 55.f);
+        set(Params::id(filter, "reverb.damping"), 45.f);
+        set(Params::id(filter, "reverb.predelay"), 18.f);
+        set(Params::id(filter, "reverb.width"), 100.f);
+        set(Params::id(filter, "reverb.mix"), 25.f);
+        set(Params::id(filter, "distortion.enabled"), 0.f);
+        set(Params::id(filter, "distortion.type"), 0.f);
+        set(Params::id(filter, "distortion.drive"), 12.f);
+        set(Params::id(filter, "distortion.tone"), 8000.f);
+        set(Params::id(filter, "distortion.mix"), 100.f);
         for (int lfo = 1; lfo <= 2; ++lfo)
         {
             const auto prefix = "lfo" + juce::String(lfo) + ".";
@@ -61,6 +77,21 @@ void VintageDualFilterAudioProcessor::setCurrentProgram(int index)
         set(Params::id(1, "lfo1.depth"), 0.35f);
         set(Params::id(1, "lfo1.shape"), 1.f);
     }
+    if (currentProgram == 2)
+    {
+        set(Params::id(1, "distortion.enabled"), 1.f);
+        set(Params::id(1, "distortion.type"), 2.f);
+        set(Params::id(1, "distortion.drive"), 18.f);
+        set(Params::id(1, "distortion.tone"), 10500.f);
+    }
+    if (currentProgram == 3)
+    {
+        set(Params::id(1, "delay.enabled"), 1.f);
+        set(Params::id(1, "delay.time"), 420.f);
+        set(Params::id(1, "delay.feedback"), 58.f);
+        set(Params::id(1, "reverb.enabled"), 1.f);
+        set(Params::id(1, "reverb.size"), 68.f);
+    }
     parameters.state.setProperty("currentProgram", currentProgram, nullptr);
 }
 
@@ -68,6 +99,7 @@ void VintageDualFilterAudioProcessor::prepareToPlay(double rate, int block)
 {
     const juce::dsp::ProcessSpec spec{rate, (juce::uint32) block, (juce::uint32) getTotalNumOutputChannels()};
     for (auto& f : filters) f.prepare(spec);
+    for (auto& effect : effects) effect.prepare(spec);
     filterLatency = filters[0].getLatencySamples();
     parallelLatencyCompensation.prepare(spec);
     parallelLatencyCompensation.setDelay(filterLatency);
@@ -97,6 +129,32 @@ FilterEngine::Settings VintageDualFilterAudioProcessor::readSettings(int f) cons
     return s;
 }
 
+EffectChain::Settings VintageDualFilterAudioProcessor::readEffectSettings(int f) const
+{
+    EffectChain::Settings s;
+    auto value = [this, f](const juce::String& key)
+    {
+        return parameters.getRawParameterValue(Params::id(f, key))->load();
+    };
+    s.delayEnabled = value("delay.enabled") > 0.5f;
+    s.delayTimeMs = value("delay.time");
+    s.delayFeedback = value("delay.feedback") / 100.f;
+    s.delayTone = value("delay.tone");
+    s.delayMix = value("delay.mix") / 100.f;
+    s.reverbEnabled = value("reverb.enabled") > 0.5f;
+    s.reverbSize = value("reverb.size") / 100.f;
+    s.reverbDamping = value("reverb.damping") / 100.f;
+    s.reverbPreDelayMs = value("reverb.predelay");
+    s.reverbWidth = value("reverb.width") / 100.f;
+    s.reverbMix = value("reverb.mix") / 100.f;
+    s.distortionEnabled = value("distortion.enabled") > 0.5f;
+    s.distortionType = static_cast<EffectChain::DistortionType>((int) value("distortion.type"));
+    s.distortionDrive = value("distortion.drive");
+    s.distortionTone = value("distortion.tone");
+    s.distortionMix = value("distortion.mix") / 100.f;
+    return s;
+}
+
 void VintageDualFilterAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer&)
 {
     juce::ScopedNoDenormals guard;
@@ -106,14 +164,17 @@ void VintageDualFilterAudioProcessor::processBlock(juce::AudioBuffer<float>& buf
     juce::dsp::ProcessContextReplacing<float> context(block);
     inputGain.process(context);
     filters[0].setSettings(readSettings(1)); filters[1].setSettings(readSettings(2));
+    effects[0].setSettings(readEffectSettings(1)); effects[1].setSettings(readEffectSettings(2));
 
     if (parameters.getRawParameterValue("routing")->load() < 0.5f) {
-        filters[0].process(buffer); filters[1].process(buffer);
+        filters[0].process(buffer); effects[0].process(buffer);
+        filters[1].process(buffer); effects[1].process(buffer);
     } else {
         for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
             parallelBuffer.copyFrom(ch, 0, buffer, ch, 0, buffer.getNumSamples());
         juce::AudioBuffer<float> parallelView(parallelBuffer.getArrayOfWritePointers(), buffer.getNumChannels(), buffer.getNumSamples());
-        filters[0].process(buffer); filters[1].process(parallelView);
+        filters[0].process(buffer); effects[0].process(buffer);
+        filters[1].process(parallelView); effects[1].process(parallelView);
         for (int ch = 0; ch < buffer.getNumChannels(); ++ch) {
             buffer.addFrom(ch, 0, parallelBuffer, ch, 0, buffer.getNumSamples());
             buffer.applyGain(ch, 0, buffer.getNumSamples(), 0.5f);

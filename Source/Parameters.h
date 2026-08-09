@@ -41,6 +41,38 @@ inline juce::AudioProcessorValueTreeState::ParameterLayout createLayout()
         layout.add(std::make_unique<APF>(id(f, "mix"), prefix + "Mix",
             juce::NormalisableRange<float>{0.f, 100.f, 0.1f}, 100.f));
 
+        layout.add(std::make_unique<APB>(id(f, "delay.enabled"), prefix + "Delay Enabled", false));
+        layout.add(std::make_unique<APF>(id(f, "delay.time"), prefix + "Delay Time",
+            juce::NormalisableRange<float>{1.f, 2000.f, 1.f, 0.35f}, 320.f));
+        layout.add(std::make_unique<APF>(id(f, "delay.feedback"), prefix + "Delay Feedback",
+            juce::NormalisableRange<float>{0.f, 95.f, 0.1f}, 35.f));
+        layout.add(std::make_unique<APF>(id(f, "delay.tone"), prefix + "Delay Tone",
+            juce::NormalisableRange<float>{250.f, 18000.f, 1.f, 0.3f}, 6500.f));
+        layout.add(std::make_unique<APF>(id(f, "delay.mix"), prefix + "Delay Mix",
+            juce::NormalisableRange<float>{0.f, 100.f, 0.1f}, 25.f));
+
+        layout.add(std::make_unique<APB>(id(f, "reverb.enabled"), prefix + "Reverb Enabled", false));
+        layout.add(std::make_unique<APF>(id(f, "reverb.size"), prefix + "Reverb Size",
+            juce::NormalisableRange<float>{0.f, 100.f, 0.1f}, 55.f));
+        layout.add(std::make_unique<APF>(id(f, "reverb.damping"), prefix + "Reverb Damping",
+            juce::NormalisableRange<float>{0.f, 100.f, 0.1f}, 45.f));
+        layout.add(std::make_unique<APF>(id(f, "reverb.predelay"), prefix + "Reverb Pre-delay",
+            juce::NormalisableRange<float>{0.f, 200.f, 0.1f}, 18.f));
+        layout.add(std::make_unique<APF>(id(f, "reverb.width"), prefix + "Reverb Width",
+            juce::NormalisableRange<float>{0.f, 100.f, 0.1f}, 100.f));
+        layout.add(std::make_unique<APF>(id(f, "reverb.mix"), prefix + "Reverb Mix",
+            juce::NormalisableRange<float>{0.f, 100.f, 0.1f}, 25.f));
+
+        layout.add(std::make_unique<APB>(id(f, "distortion.enabled"), prefix + "Distortion Enabled", false));
+        layout.add(std::make_unique<APC>(id(f, "distortion.type"), prefix + "Distortion Type",
+            juce::StringArray{"Soft", "Hard", "Diode"}, 0));
+        layout.add(std::make_unique<APF>(id(f, "distortion.drive"), prefix + "Distortion Drive",
+            juce::NormalisableRange<float>{0.f, 36.f, 0.1f}, 12.f));
+        layout.add(std::make_unique<APF>(id(f, "distortion.tone"), prefix + "Distortion Tone",
+            juce::NormalisableRange<float>{400.f, 18000.f, 1.f, 0.3f}, 8000.f));
+        layout.add(std::make_unique<APF>(id(f, "distortion.mix"), prefix + "Distortion Mix",
+            juce::NormalisableRange<float>{0.f, 100.f, 0.1f}, 100.f));
+
         for (int l = 1; l <= 2; ++l)
         {
             const auto lfo = "lfo" + juce::String(l) + ".";
