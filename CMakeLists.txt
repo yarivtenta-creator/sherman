@@ -14,7 +14,7 @@ juce_add_plugin(YARIFILTER
     COMPANY_NAME "DJ Audio Lab"
     BUNDLE_ID com.djaudiolab.yarifilter
     PLUGIN_MANUFACTURER_CODE DjAl
-    PLUGIN_CODE JrFl
+    PLUGIN_CODE YrF3
     FORMATS VST3 Standalone
     PRODUCT_NAME "YARIFILTER"
     IS_SYNTH FALSE
