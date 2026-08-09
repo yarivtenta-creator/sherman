@@ -10,5 +10,5 @@ if errorlevel 1 exit /b 1
 cmake --build build-win --config Release --parallel
 if errorlevel 1 exit /b 1
 echo.
-echo JARIFILTER build complete:
-echo build-win\JARIFILTER_artefacts\Release\VST3\JARIFILTER.vst3
+echo YARIFILTER build complete:
+echo build-win\YARIFILTER_artefacts\Release\VST3\YARIFILTER.vst3
