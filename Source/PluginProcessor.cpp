@@ -116,7 +116,7 @@ void VintageDualFilterAudioProcessor::processBlock(juce::AudioBuffer<float>& buf
         filters[0].process(buffer); filters[1].process(parallelView);
         for (int ch = 0; ch < buffer.getNumChannels(); ++ch) {
             buffer.addFrom(ch, 0, parallelBuffer, ch, 0, buffer.getNumSamples());
-            buffer.applyGain(ch, 0.5f);
+            buffer.applyGain(ch, 0, buffer.getNumSamples(), 0.5f);
         }
         parallelLatencyCompensation.process(context);
     }
