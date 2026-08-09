@@ -84,15 +84,50 @@ void VintageDualFilterAudioProcessor::setCurrentProgram(int index)
         set(Params::id(1, "distortion.drive"), 18.f);
         set(Params::id(1, "distortion.tone"), 10500.f);
     }
-    if (currentProgram == 3)
-    {
-        set(Params::id(1, "delay.enabled"), 1.f);
-        set(Params::id(1, "delay.time"), 420.f);
-        set(Params::id(1, "delay.feedback"), 58.f);
-        set(Params::id(1, "reverb.enabled"), 1.f);
-        set(Params::id(1, "reverb.size"), 68.f);
-    }
     parameters.state.setProperty("currentProgram", currentProgram, nullptr);
+}
+
+void VintageDualFilterAudioProcessor::saveUserPreset(int slot)
+{
+    slot = juce::jlimit(1, 4, slot);
+    juce::ValueTree preset("USER_PRESET");
+    preset.setProperty("slot", slot, nullptr);
+    for (auto* parameter : getParameters())
+        if (auto* ranged = dynamic_cast<juce::RangedAudioParameter*>(parameter))
+            preset.setProperty(ranged->getParameterID(), ranged->convertFrom0to1(ranged->getValue()), nullptr);
+
+    for (int i = parameters.state.getNumChildren(); --i >= 0;)
+    {
+        const auto child = parameters.state.getChild(i);
+        if (child.hasType("USER_PRESET") && (int) child.getProperty("slot") == slot)
+            parameters.state.removeChild(i, nullptr);
+    }
+    parameters.state.appendChild(preset, nullptr);
+}
+
+void VintageDualFilterAudioProcessor::loadUserPreset(int slot)
+{
+    slot = juce::jlimit(1, 4, slot);
+    for (int i = 0; i < parameters.state.getNumChildren(); ++i)
+    {
+        const auto preset = parameters.state.getChild(i);
+        if (!preset.hasType("USER_PRESET") || (int) preset.getProperty("slot") != slot) continue;
+        for (auto* parameter : getParameters())
+            if (auto* ranged = dynamic_cast<juce::RangedAudioParameter*>(parameter))
+                if (preset.hasProperty(ranged->getParameterID()))
+                    ranged->setValueNotifyingHost(ranged->convertTo0to1((float) preset.getProperty(ranged->getParameterID())));
+        return;
+    }
+}
+
+bool VintageDualFilterAudioProcessor::hasUserPreset(int slot) const
+{
+    for (int i = 0; i < parameters.state.getNumChildren(); ++i)
+    {
+        const auto child = parameters.state.getChild(i);
+        if (child.hasType("USER_PRESET") && (int) child.getProperty("slot") == slot) return true;
+    }
+    return false;
 }
 
 void VintageDualFilterAudioProcessor::prepareToPlay(double rate, int block)
