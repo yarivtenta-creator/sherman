@@ -28,6 +28,7 @@ private:
         FilterPanel(juce::AudioProcessorValueTreeState&, int);
         void addTo(juce::Component&);
         void layout(juce::Rectangle<int>);
+        void selectEffect(int);
 
         juce::Label heading;
         std::array<juce::ComboBox, 7> selectors;
@@ -46,6 +47,7 @@ private:
         std::unique_ptr<ComboAttachment> distortionTypeAttachment;
         std::unique_ptr<ButtonAttachment> enabledAttachment;
         std::array<std::unique_ptr<ButtonAttachment>, 3> effectButtonAttachments;
+        int selectedEffect = 0;
     };
 
     VintageDualFilterAudioProcessor& processor;
