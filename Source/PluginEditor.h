@@ -35,9 +35,17 @@ private:
         std::array<juce::Slider, 8> knobs;
         std::array<juce::Label, 8> knobLabels;
         juce::ToggleButton enabled{"ACTIVE"};
+        std::array<juce::ToggleButton, 3> effectButtons;
+        std::array<juce::Slider, 12> effectKnobs;
+        std::array<juce::Label, 12> effectLabels;
+        juce::ComboBox distortionType;
+        juce::Label distortionTypeLabel;
         std::array<std::unique_ptr<SliderAttachment>, 8> knobAttachments;
+        std::array<std::unique_ptr<SliderAttachment>, 12> effectKnobAttachments;
         std::array<std::unique_ptr<ComboAttachment>, 7> selectorAttachments;
+        std::unique_ptr<ComboAttachment> distortionTypeAttachment;
         std::unique_ptr<ButtonAttachment> enabledAttachment;
+        std::array<std::unique_ptr<ButtonAttachment>, 3> effectButtonAttachments;
     };
 
     VintageDualFilterAudioProcessor& processor;
