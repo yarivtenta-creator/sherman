@@ -78,7 +78,7 @@ private:
         const auto wet = juce::jlimit(0.f, 1.f, settings.delayMix);
         const auto coefficients = juce::dsp::IIR::Coefficients<float>::makeLowPass(sampleRate,
             juce::jlimit(250.f, (float) sampleRate * 0.45f, settings.delayTone));
-        for (auto& filter : delayTone) *filter.state = *coefficients;
+        for (auto& filter : delayTone) filter.state = coefficients;
 
         for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
         {
@@ -141,7 +141,7 @@ private:
         const auto wet = juce::jlimit(0.f, 1.f, settings.distortionMix);
         const auto coefficients = juce::dsp::IIR::Coefficients<float>::makeLowPass(sampleRate,
             juce::jlimit(400.f, (float) sampleRate * 0.45f, settings.distortionTone));
-        for (auto& filter : distortionTone) *filter.state = *coefficients;
+        for (auto& filter : distortionTone) filter.state = coefficients;
         for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
         {
             auto* samples = buffer.getWritePointer(ch);
@@ -165,6 +165,7 @@ private:
     double sampleRate = 44100.0;
     int maxBlockSize = 512, numChannels = 2, delayWrite = 0, preDelayWrite = 0;
     juce::AudioBuffer<float> delayBuffer, preDelayBuffer, dryBuffer, reverbBuffer;
-    std::array<juce::dsp::IIR::Filter<float>, 2> delayTone, distortionTone;
+    using ToneFilter = juce::dsp::ProcessorDuplicator<juce::dsp::IIR::Filter<float>, juce::dsp::IIR::Coefficients<float>>;
+    std::array<ToneFilter, 2> delayTone, distortionTone;
     juce::Reverb reverb;
 };
