@@ -145,6 +145,8 @@ void VintageDualFilterAudioProcessor::prepareToPlay(double rate, int block)
     const juce::dsp::ProcessSpec spec{rate, (juce::uint32) block, (juce::uint32) getTotalNumOutputChannels()};
     for (auto& f : filters) f.prepare(spec);
     for (auto& effect : effects) effect.prepare(spec);
+    for (auto& f : parallelFilters) f.prepare(spec);
+    for (auto& effect : parallelEffects) effect.prepare(spec);
     modulation.prepare(rate, (int) spec.numChannels, block);
     filterLatency = filters[0].getLatencySamples();
     parallelLatencyCompensation.prepare(spec);
@@ -152,6 +154,7 @@ void VintageDualFilterAudioProcessor::prepareToPlay(double rate, int block)
     setLatencySamples((int)std::ceil(filterLatency * 2.f));
     killBands.prepare(spec);
     parallelBuffer.setSize((int)spec.numChannels, block, false, false, true);
+    parallelSecondBuffer.setSize((int)spec.numChannels, block, false, false, true);
     inputGain.prepare(spec); outputGain.prepare(spec);
 }
 
@@ -165,6 +168,7 @@ FilterEngine::Settings VintageDualFilterAudioProcessor::readSettings(int f) cons
     s.slopeIndex = (int)value(Params::id(f, "slope")); s.cutoff = value(Params::id(f, "cutoff"));
     s.resonance = value(Params::id(f, "resonance")); s.thd = value(Params::id(f, "thd"));
     s.mix = value(Params::id(f, "mix")) / 100.f;
+    s.character = value(Params::id(f, "character")) / 100.f;
     for (int l = 0; l < 2; ++l) {
         const auto p = "lfo" + juce::String(l + 1) + ".";
         s.lfo[(size_t)l].rate = value(Params::id(f, p + "rate"));
@@ -240,22 +244,35 @@ void VintageDualFilterAudioProcessor::processBlock(juce::AudioBuffer<float>& buf
         secondSettings.cutoff = firstSettings.cutoff * ratios[(size_t) juce::jlimit(0, 7, (int) value("filter2.harmonic"))];
     }
     filters[0].setSettings(firstSettings); filters[1].setSettings(secondSettings);
+    parallelFilters[0].setSettings(firstSettings); parallelFilters[1].setSettings(secondSettings);
     effects[0].setSettings(readEffectSettings(1)); effects[1].setSettings(readEffectSettings(2));
+    parallelEffects[0].setSettings(readEffectSettings(1)); parallelEffects[1].setSettings(readEffectSettings(2));
 
-    if (parameters.getRawParameterValue("routing")->load() < 0.5f) {
-        filters[0].process(buffer); effects[0].process(buffer);
-        filters[1].process(buffer); effects[1].process(buffer);
-    } else {
-        for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
-            parallelBuffer.copyFrom(ch, 0, buffer, ch, 0, buffer.getNumSamples());
-        juce::AudioBuffer<float> parallelView(parallelBuffer.getArrayOfWritePointers(), buffer.getNumChannels(), buffer.getNumSamples());
-        filters[0].process(buffer); effects[0].process(buffer);
-        filters[1].process(parallelView); effects[1].process(parallelView);
-        for (int ch = 0; ch < buffer.getNumChannels(); ++ch) {
-            buffer.addFrom(ch, 0, parallelBuffer, ch, 0, buffer.getNumSamples());
-            buffer.applyGain(ch, 0, buffer.getNumSamples(), 0.5f);
-        }
-        parallelLatencyCompensation.process(context);
+    for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
+    {
+        parallelBuffer.copyFrom(ch, 0, buffer, ch, 0, buffer.getNumSamples());
+        parallelSecondBuffer.copyFrom(ch, 0, buffer, ch, 0, buffer.getNumSamples());
+    }
+    filters[0].process(buffer); effects[0].process(buffer);
+    filters[1].process(buffer); effects[1].process(buffer);
+    juce::AudioBuffer<float> parallelViewA(parallelBuffer.getArrayOfWritePointers(), buffer.getNumChannels(), buffer.getNumSamples());
+    juce::AudioBuffer<float> parallelViewB(parallelSecondBuffer.getArrayOfWritePointers(), buffer.getNumChannels(), buffer.getNumSamples());
+    parallelFilters[0].process(parallelViewA); parallelEffects[0].process(parallelViewA);
+    parallelFilters[1].process(parallelViewB); parallelEffects[1].process(parallelViewB);
+    for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
+    {
+        parallelBuffer.addFrom(ch, 0, parallelSecondBuffer, ch, 0, buffer.getNumSamples());
+        parallelBuffer.applyGain(ch, 0, buffer.getNumSamples(), 0.5f);
+    }
+    auto parallelBlock = juce::dsp::AudioBlock<float>(parallelBuffer).getSubBlock(0, (size_t) buffer.getNumSamples());
+    juce::dsp::ProcessContextReplacing<float> parallelContext(parallelBlock);
+    parallelLatencyCompensation.process(parallelContext);
+    auto routingBlend = value("routingBlend") / 100.f;
+    if (value("routing") > 0.5f && routingBlend <= 0.001f) routingBlend = 1.f;
+    for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
+    {
+        buffer.applyGain(ch, 0, buffer.getNumSamples(), 1.f - routingBlend);
+        buffer.addFrom(ch, 0, parallelBuffer, ch, 0, buffer.getNumSamples(), routingBlend);
     }
     killBands.process(buffer,
         parameters.getRawParameterValue("kill.low")->load() > 0.5f,
