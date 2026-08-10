@@ -28,22 +28,40 @@ void VintageLookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int w
     float position, float start, float end, juce::Slider& slider)
 {
     const auto diameter = (float) juce::jmin(w, h);
-    auto r = juce::Rectangle<float>(diameter, diameter)
+    auto bounds = juce::Rectangle<float>(diameter, diameter)
                  .withCentre(juce::Rectangle<float>((float)x, (float)y, (float)w, (float)h).getCentre())
-                 .reduced(7.f);
+                 .reduced(3.f);
+    auto r = bounds.reduced(diameter * 0.15f);
     const auto centre = r.getCentre();
     const auto angle = start + position * (end - start);
-    const auto accent = slider.getProperties().getWithDefault("accent", false) ? Palette::turquoise : Palette::brass;
+    const auto accent = slider.getProperties().getWithDefault("accent", false) ? Palette::turquoise : Palette::cream;
+
+    for (int tick = 0; tick < 11; ++tick)
+    {
+        const auto tickAngle = start + (end - start) * (float) tick / 10.f;
+        const auto innerRadius = bounds.getWidth() * 0.39f;
+        const auto outerRadius = bounds.getWidth() * 0.46f;
+        const auto inner = centre + juce::Point<float>(std::sin(tickAngle), -std::cos(tickAngle)) * innerRadius;
+        const auto outer = centre + juce::Point<float>(std::sin(tickAngle), -std::cos(tickAngle)) * outerRadius;
+        g.setColour(Palette::cream.withAlpha(tick == 0 || tick == 10 ? 0.9f : 0.58f));
+        g.drawLine({inner, outer}, tick == 0 || tick == 10 ? 1.7f : 1.1f);
+    }
 
     g.setColour(juce::Colours::black.withAlpha(0.35f));
     g.fillEllipse(r.translated(2.f, 3.f));
-    g.setGradientFill({juce::Colour(0xff343238), centre.x, r.getY(), Palette::charcoal, centre.x, r.getBottom(), false});
+    g.setColour(Palette::charcoal);
+    g.fillEllipse(r.expanded(3.f));
+    g.setColour(juce::Colour(0xff565a5e));
+    g.drawEllipse(r.expanded(2.f), 2.f);
+    g.setGradientFill({juce::Colour(0xff34363a), centre.x, r.getY(), juce::Colour(0xff08090a), centre.x, r.getBottom(), false});
     g.fillEllipse(r);
-    g.setColour(accent); g.drawEllipse(r, 2.2f);
-    g.setColour(Palette::cream.withAlpha(0.22f)); g.drawEllipse(r.reduced(5.f), 1.f);
+    auto cap = r.reduced(r.getWidth() * 0.22f);
+    g.setGradientFill({juce::Colour(0xff777b80), cap.getTopLeft(), juce::Colour(0xff25272a), cap.getBottomRight(), false});
+    g.fillEllipse(cap);
+    g.setColour(juce::Colours::black.withAlpha(0.65f)); g.drawEllipse(cap, 1.4f);
     g.setColour(accent);
-    g.drawLine(centre.x, centre.y, centre.x + std::sin(angle) * r.getWidth() * 0.38f,
-               centre.y - std::cos(angle) * r.getHeight() * 0.38f, 3.f);
+    g.drawLine(centre.x, centre.y, centre.x + std::sin(angle) * r.getWidth() * 0.34f,
+               centre.y - std::cos(angle) * r.getHeight() * 0.34f, 2.8f);
 }
 
 void VintageLookAndFeel::drawToggleButton(juce::Graphics& g, juce::ToggleButton& button, bool, bool)
@@ -150,6 +168,7 @@ void VintageDualFilterAudioProcessorEditor::FilterPanel::selectEffect(int effect
     }
     distortionType.setVisible(selectedEffect == 2);
     distortionTypeLabel.setVisible(selectedEffect == 2);
+    if (!lastLayoutArea.isEmpty()) layout(lastLayoutArea);
 }
 
 void VintageDualFilterAudioProcessorEditor::FilterPanel::addTo(juce::Component& parent)
@@ -165,6 +184,7 @@ void VintageDualFilterAudioProcessorEditor::FilterPanel::addTo(juce::Component& 
 
 void VintageDualFilterAudioProcessorEditor::FilterPanel::layout(juce::Rectangle<int> area)
 {
+    lastLayoutArea = area;
     auto top = area.removeFromTop(34); heading.setBounds(top.removeFromLeft(top.getWidth() - 85)); enabled.setBounds(top.reduced(3));
     auto selectorsArea = area.removeFromTop(112);
     auto primary = selectorsArea.removeFromTop(56);
