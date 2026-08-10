@@ -205,14 +205,20 @@ EffectChain::Settings VintageDualFilterAudioProcessor::readEffectSettings(int f)
     return s;
 }
 
-void VintageDualFilterAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer&)
+void VintageDualFilterAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midi)
 {
     juce::ScopedNoDenormals guard;
+    for (const auto metadata : midi)
+    {
+        const auto message = metadata.getMessage();
+        if (message.isNoteOn()) midiGate = true;
+        else if (message.isNoteOff() || message.isAllNotesOff()) midiGate = false;
+    }
     auto value = [this](const juce::String& id) { return parameters.getRawParameterValue(id)->load(); };
     modulation.captureDry(buffer);
     modulation.processInput(buffer, value("input.drive"), value("input.highShelf"), value("input.noise"));
     modulation.analyse(buffer, value("env.attack"), value("env.decay"), value("env.sustain") / 100.f,
-                       value("env.release"), value("env.threshold"), value("modLfo.rate"), value("modLfo.shape") > 0.5f);
+                       value("env.release"), value("env.threshold"), value("modLfo.rate"), value("modLfo.shape") > 0.5f, midiGate);
     inputGain.setGainDecibels(parameters.getRawParameterValue("inputGain")->load());
     outputGain.setGainDecibels(parameters.getRawParameterValue("outputGain")->load());
     juce::dsp::AudioBlock<float> block(buffer);
