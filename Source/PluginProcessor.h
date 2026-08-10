@@ -3,6 +3,7 @@
 #include "DSP/FilterEngine.h"
 #include "DSP/KillBandProcessor.h"
 #include "DSP/EffectChain.h"
+#include "DSP/ModulationProcessor.h"
 #include "Parameters.h"
 
 class VintageDualFilterAudioProcessor final : public juce::AudioProcessor
@@ -16,8 +17,8 @@ public:
     juce::AudioProcessorEditor* createEditor() override;
     bool hasEditor() const override { return true; }
     const juce::String getName() const override { return JucePlugin_Name; }
-    bool acceptsMidi() const override { return false; }
-    bool producesMidi() const override { return false; }
+    bool acceptsMidi() const override { return true; }
+    bool producesMidi() const override { return true; }
     bool isMidiEffect() const override { return false; }
     double getTailLengthSeconds() const override { return 0.0; }
     int getNumPrograms() override { return 5; }
@@ -37,6 +38,7 @@ private:
     EffectChain::Settings readEffectSettings(int) const;
     std::array<FilterEngine, 2> filters;
     std::array<EffectChain, 2> effects;
+    ModulationProcessor modulation;
     KillBandProcessor killBands;
     juce::AudioBuffer<float> parallelBuffer;
     juce::dsp::DelayLine<float, juce::dsp::DelayLineInterpolationTypes::Linear> parallelLatencyCompensation{4096};
