@@ -28,6 +28,7 @@ public:
         float resonance = 0.707f;
         float thd = 0.f;
         float mix = 1.f;
+        float character = -1.f;
         std::array<LfoSettings, 2> lfo;
     };
 
@@ -44,6 +45,8 @@ private:
     void applyModelSaturation(juce::dsp::AudioBlock<float>, float driveAmount);
 
     std::array<juce::dsp::StateVariableTPTFilter<float>, 4> stages;
+    std::array<std::array<juce::dsp::StateVariableTPTFilter<float>, 4>, 3> morphStages;
+    std::array<juce::AudioBuffer<float>, 3> morphBuffers;
     juce::dsp::Oversampling<float> oversampling;
     juce::dsp::DelayLine<float, juce::dsp::DelayLineInterpolationTypes::Linear> dryDelay{4096};
     juce::AudioBuffer<float> dryBuffer;
