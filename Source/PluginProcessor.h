@@ -48,5 +48,6 @@ private:
     juce::dsp::Gain<float> inputGain, outputGain;
     int currentProgram = 0;
     float filterLatency = 0.f;
+    bool midiGate = false;
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(VintageDualFilterAudioProcessor)
 };
