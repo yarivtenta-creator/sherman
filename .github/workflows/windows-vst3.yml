@@ -3,7 +3,7 @@ name: Build YARIFILTER Windows VST3
 on:
   workflow_dispatch:
   push:
-    branches: [main, feature/yarifilter-v03-presets]
+    branches: [main]
 
 permissions:
   contents: read
