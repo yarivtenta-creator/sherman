@@ -75,6 +75,91 @@ void VintageLookAndFeel::drawToggleButton(juce::Graphics& g, juce::ToggleButton&
     g.setFont(juce::FontOptions(11.f).withStyle("Bold")); g.drawText(button.getButtonText(), r, juce::Justification::centred);
 }
 
+VintageDualFilterAudioProcessorEditor::ModularPanel::ModularPanel(juce::AudioProcessorValueTreeState& state)
+{
+    setOpaque(true);
+    const std::array<juce::String, 19> names{
+        "INPUT DRIVE", "HIGH BOOST/CUT", "NOISE", "PITCH TRACK",
+        "ATTACK", "DECAY", "SUSTAIN", "RELEASE", "FILTER 1 ENV", "FILTER 2 ENV",
+        "FM DEPTH", "AM DEPTH", "LFO RATE", "LFO DEPTH", "VCA DRIVE",
+        "VCA ATTACK", "VCA RELEASE", "SERIES/PARALLEL", "WET/DRY"};
+    const std::array<juce::String, 19> ids{
+        "input.drive", "input.highShelf", "input.noise", "input.pitchTrack",
+        "env.attack", "env.decay", "env.sustain", "env.release", "filter1.envAmount", "filter2.envAmount",
+        "fm.depth", "am.depth", "modLfo.rate", "modLfo.depth", "vca.drive",
+        "vca.attack", "vca.release", "routingBlend", "globalMix"};
+    for (size_t i = 0; i < knobs.size(); ++i)
+    {
+        knobs[i].setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
+        knobs[i].setTextBoxStyle(juce::Slider::TextBoxBelow, false, 62, 16);
+        knobLabels[i].setText(names[i], juce::dontSendNotification);
+        knobLabels[i].setJustificationType(juce::Justification::centred);
+        knobLabels[i].setFont(juce::FontOptions(9.f).withStyle("Bold"));
+        addAndMakeVisible(knobs[i]); addAndMakeVisible(knobLabels[i]);
+        knobAttachments[i] = std::make_unique<SliderAttachment>(state, ids[i], knobs[i]);
+    }
+    const std::array<juce::String, 4> selectorNames{"HARMONIC", "FM SOURCE", "AM SOURCE", "LFO SHAPE"};
+    const std::array<juce::String, 4> selectorIds{"filter2.harmonic", "fm.source", "am.source", "modLfo.shape"};
+    const std::array<juce::StringArray, 4> choices{
+        juce::StringArray{"-3 OCT", "-2 OCT", "-1 OCT", "UNISON", "FIFTH", "+1 OCT", "+2 OCT", "+3 OCT"},
+        juce::StringArray{"OFF", "INPUT", "LFO SINE", "LFO SAW", "SIDECHAIN/CV"},
+        juce::StringArray{"OFF", "INPUT", "LFO SINE", "LFO SAW", "SIDECHAIN/CV"},
+        juce::StringArray{"SINE", "SAW"}};
+    for (size_t i = 0; i < selectors.size(); ++i)
+    {
+        selectors[i].addItemList(choices[i], 1);
+        selectorLabels[i].setText(selectorNames[i], juce::dontSendNotification);
+        selectorLabels[i].setJustificationType(juce::Justification::centred);
+        addAndMakeVisible(selectors[i]); addAndMakeVisible(selectorLabels[i]);
+        selectorAttachments[i] = std::make_unique<ComboAttachment>(state, selectorIds[i], selectors[i]);
+    }
+    const std::array<juce::String, 3> switchNames{"ADSR ON", "HARMONIC LINK", "VCA ON"};
+    const std::array<juce::String, 3> switchIds{"env.enabled", "filter2.sync", "vca.enabled"};
+    for (size_t i = 0; i < switches.size(); ++i)
+    {
+        switches[i].setButtonText(switchNames[i]); addAndMakeVisible(switches[i]);
+        switchAttachments[i] = std::make_unique<ButtonAttachment>(state, switchIds[i], switches[i]);
+    }
+}
+
+void VintageDualFilterAudioProcessorEditor::ModularPanel::paint(juce::Graphics& g)
+{
+    g.fillAll(Palette::charcoal);
+    auto rack = getLocalBounds().toFloat().reduced(4.f);
+    g.setGradientFill({Palette::silver.brighter(0.15f), rack.getTopLeft(), Palette::silverDark, rack.getBottomRight(), false});
+    g.fillRoundedRectangle(rack, 8.f);
+    g.setColour(juce::Colours::white.withAlpha(0.72f)); g.drawRoundedRectangle(rack.reduced(2.f), 8.f, 1.3f);
+    g.setColour(Palette::charcoal); g.setFont(juce::FontOptions(16.f).withStyle("Bold"));
+    g.drawText("MODULAR CONTROL", getLocalBounds().removeFromTop(32), juce::Justification::centred);
+}
+
+void VintageDualFilterAudioProcessorEditor::ModularPanel::resized()
+{
+    auto area = getLocalBounds().reduced(16); area.removeFromTop(30);
+    auto top = area.removeFromTop(62);
+    for (size_t i = 0; i < switches.size(); ++i)
+        switches[i].setBounds(top.removeFromLeft(top.getWidth() / (int)(switches.size() - i)).reduced(8, 12));
+    auto selectorsRow = area.removeFromTop(62);
+    for (size_t i = 0; i < selectors.size(); ++i)
+    {
+        auto cell = selectorsRow.removeFromLeft(selectorsRow.getWidth() / (int)(selectors.size() - i));
+        selectorLabels[i].setBounds(cell.removeFromTop(18)); selectors[i].setBounds(cell.reduced(6, 2));
+    }
+    for (int row = 0; row < 4; ++row)
+    {
+        auto rowArea = area.removeFromTop(area.getHeight() / (4 - row));
+        const auto columns = row == 3 ? 4 : 5;
+        for (int col = 0; col < columns; ++col)
+        {
+            const auto index = row * 5 + col;
+            if (index >= (int) knobs.size()) break;
+            auto cell = rowArea.removeFromLeft(rowArea.getWidth() / (columns - col));
+            knobLabels[(size_t) index].setBounds(cell.removeFromTop(16));
+            knobs[(size_t) index].setBounds(cell.reduced(2));
+        }
+    }
+}
+
 VintageDualFilterAudioProcessorEditor::FilterPanel::FilterPanel(juce::AudioProcessorValueTreeState& state, int filter)
 {
     heading.setText("FILTER  " + juce::String(filter), juce::dontSendNotification);
@@ -245,6 +330,16 @@ VintageDualFilterAudioProcessorEditor::VintageDualFilterAudioProcessorEditor(Vin
     userPresetLabel.setText("USER PRESET", juce::dontSendNotification); userPresetLabel.setJustificationType(juce::Justification::centred);
     addAndMakeVisible(title); addAndMakeVisible(subtitle); addAndMakeVisible(routingLabel); addAndMakeVisible(routing); addAndMakeVisible(presetLabel); addAndMakeVisible(presets);
     addAndMakeVisible(userPresetLabel); addAndMakeVisible(userPresets); addAndMakeVisible(saveUserPreset); addAndMakeVisible(loadUserPreset);
+    addAndMakeVisible(modularButton);
+    modularPanel = std::make_unique<ModularPanel>(processor.parameters);
+    addChildComponent(*modularPanel);
+    modularButton.onClick = [this]
+    {
+        const auto show = !modularPanel->isVisible();
+        modularPanel->setVisible(show);
+        modularButton.setButtonText(show ? "FILTERS" : "MODULAR");
+        if (show) modularPanel->toFront(false);
+    };
     routing.addItemList({"SERIES", "PARALLEL"}, 1);
     routingAttachment = std::make_unique<ComboAttachment>(processor.parameters, "routing", routing);
     for (int i = 0; i < processor.getNumPrograms(); ++i) presets.addItem(processor.getProgramName(i), i + 1);
@@ -320,6 +415,7 @@ void VintageDualFilterAudioProcessorEditor::resized()
 {
     auto area = getLocalBounds().reduced(28);
     title.setBounds(area.removeFromTop(38)); subtitle.setBounds(area.removeFromTop(22)); area.removeFromTop(12);
+    modularButton.setBounds(getWidth() - 120, 28, 86, 28);
     auto bottom = area.removeFromBottom(58); area.removeFromBottom(10);
     const auto centreWidth = juce::jmax(145, area.getWidth() / 8);
     auto left = area.removeFromLeft((area.getWidth() - centreWidth) / 2); auto centre = area.removeFromLeft(centreWidth); auto right = area;
@@ -344,4 +440,5 @@ void VintageDualFilterAudioProcessorEditor::resized()
     for (auto& kill : kills) kill.setBounds(killArea.removeFromTop(50).reduced(7));
     bottom = bottom.withSizeKeepingCentre(420, bottom.getHeight());
     for (size_t i = 0; i < kills.size(); ++i) bottom.removeFromLeft(bottom.getWidth() / (int)(kills.size() - i));
+    if (modularPanel != nullptr) modularPanel->setBounds(getLocalBounds().reduced(24).withTrimmedTop(66).withTrimmedBottom(18));
 }
