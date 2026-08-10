@@ -78,14 +78,14 @@ void VintageLookAndFeel::drawToggleButton(juce::Graphics& g, juce::ToggleButton&
 VintageDualFilterAudioProcessorEditor::ModularPanel::ModularPanel(juce::AudioProcessorValueTreeState& state)
 {
     setOpaque(true);
-    const std::array<juce::String, 19> names{
+    const std::array<juce::String, 21> names{
         "INPUT DRIVE", "HIGH BOOST/CUT", "NOISE", "PITCH TRACK",
-        "ATTACK", "DECAY", "SUSTAIN", "RELEASE", "FILTER 1 ENV", "FILTER 2 ENV",
+        "FILTER 1 CHARACTER", "FILTER 2 CHARACTER", "ATTACK", "DECAY", "SUSTAIN", "RELEASE", "FILTER 1 ENV", "FILTER 2 ENV",
         "FM DEPTH", "AM DEPTH", "LFO RATE", "LFO DEPTH", "VCA DRIVE",
         "VCA ATTACK", "VCA RELEASE", "SERIES/PARALLEL", "WET/DRY"};
-    const std::array<juce::String, 19> ids{
+    const std::array<juce::String, 21> ids{
         "input.drive", "input.highShelf", "input.noise", "input.pitchTrack",
-        "env.attack", "env.decay", "env.sustain", "env.release", "filter1.envAmount", "filter2.envAmount",
+        "filter1.character", "filter2.character", "env.attack", "env.decay", "env.sustain", "env.release", "filter1.envAmount", "filter2.envAmount",
         "fm.depth", "am.depth", "modLfo.rate", "modLfo.depth", "vca.drive",
         "vca.attack", "vca.release", "routingBlend", "globalMix"};
     for (size_t i = 0; i < knobs.size(); ++i)
@@ -145,10 +145,10 @@ void VintageDualFilterAudioProcessorEditor::ModularPanel::resized()
         auto cell = selectorsRow.removeFromLeft(selectorsRow.getWidth() / (int)(selectors.size() - i));
         selectorLabels[i].setBounds(cell.removeFromTop(18)); selectors[i].setBounds(cell.reduced(6, 2));
     }
-    for (int row = 0; row < 4; ++row)
+    for (int row = 0; row < 5; ++row)
     {
-        auto rowArea = area.removeFromTop(area.getHeight() / (4 - row));
-        const auto columns = row == 3 ? 4 : 5;
+        auto rowArea = area.removeFromTop(area.getHeight() / (5 - row));
+        const auto columns = row == 4 ? 1 : 5;
         for (int col = 0; col < columns; ++col)
         {
             const auto index = row * 5 + col;
