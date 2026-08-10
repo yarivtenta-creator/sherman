@@ -18,14 +18,15 @@ juce_add_plugin(YARIFILTER
     FORMATS VST3 Standalone
     PRODUCT_NAME "YARIFILTER"
     IS_SYNTH FALSE
-    NEEDS_MIDI_INPUT FALSE
-    NEEDS_MIDI_OUTPUT FALSE)
+    NEEDS_MIDI_INPUT TRUE
+    NEEDS_MIDI_OUTPUT TRUE)
 
 target_sources(YARIFILTER PRIVATE
     Source/PluginProcessor.cpp
     Source/PluginEditor.cpp
     Source/DSP/FilterEngine.cpp
     Source/DSP/EffectChain.h
+    Source/DSP/ModulationProcessor.h
     Source/DSP/KillBandProcessor.h)
 
 target_include_directories(YARIFILTER PRIVATE Source)
