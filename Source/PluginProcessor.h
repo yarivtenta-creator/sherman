@@ -38,9 +38,12 @@ private:
     EffectChain::Settings readEffectSettings(int) const;
     std::array<FilterEngine, 2> filters;
     std::array<EffectChain, 2> effects;
+    std::array<FilterEngine, 2> parallelFilters;
+    std::array<EffectChain, 2> parallelEffects;
     ModulationProcessor modulation;
     KillBandProcessor killBands;
     juce::AudioBuffer<float> parallelBuffer;
+    juce::AudioBuffer<float> parallelSecondBuffer;
     juce::dsp::DelayLine<float, juce::dsp::DelayLineInterpolationTypes::Linear> parallelLatencyCompensation{4096};
     juce::dsp::Gain<float> inputGain, outputGain;
     int currentProgram = 0;
