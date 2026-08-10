@@ -48,6 +48,7 @@ private:
         std::unique_ptr<ButtonAttachment> enabledAttachment;
         std::array<std::unique_ptr<ButtonAttachment>, 3> effectButtonAttachments;
         int selectedEffect = 0;
+        juce::Rectangle<int> lastLayoutArea;
     };
 
     VintageDualFilterAudioProcessor& processor;
