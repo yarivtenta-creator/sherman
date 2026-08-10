@@ -10,16 +10,20 @@ void FilterEngine::prepare(const juce::dsp::ProcessSpec& spec)
     sampleRate = spec.sampleRate;
     maximumBlockSize = (int)spec.maximumBlockSize;
     for (auto& stage : stages) stage.prepare(spec);
+    for (auto& bank : morphStages) for (auto& stage : bank) stage.prepare(spec);
     oversampling.initProcessing(spec.maximumBlockSize);
     dryDelay.prepare(spec);
     dryDelay.setDelay(oversampling.getLatencyInSamples());
     dryBuffer.setSize((int)spec.numChannels, maximumBlockSize, false, false, true);
+    for (auto& scratch : morphBuffers)
+        scratch.setSize((int) spec.numChannels, maximumBlockSize, false, false, true);
     reset();
 }
 
 void FilterEngine::reset()
 {
     for (auto& stage : stages) stage.reset();
+    for (auto& bank : morphStages) for (auto& stage : bank) stage.reset();
     oversampling.reset();
     dryDelay.reset();
     phases.fill(0.f);
@@ -68,6 +72,14 @@ void FilterEngine::updateFilters(float cutoff, float resonance)
         stage.setCutoffFrequency(cutoff);
         stage.setResonance(resonance);
     }
+    const std::array<Type, 3> morphTypes{Type::lowpass, Type::bandpass, Type::highpass};
+    for (size_t bank = 0; bank < morphStages.size(); ++bank)
+        for (auto& stage : morphStages[bank])
+        {
+            stage.setType(morphTypes[bank]);
+            stage.setCutoffFrequency(cutoff);
+            stage.setResonance(resonance);
+        }
 
     onePoleAlpha = 1.f - std::exp(-juce::MathConstants<float>::twoPi * cutoff / (float)sampleRate);
     const auto bandwidth = juce::jmax(0.25f, resonance);
@@ -155,7 +167,7 @@ void FilterEngine::process(juce::AudioBuffer<float>& buffer)
         applyModelSaturation(oversampled, juce::jlimit(0.f, 100.f, settings.thd + driveMod * 50.f));
         oversampling.processSamplesDown(slice);
 
-        if (settings.slopeIndex == 0)
+        if (settings.slopeIndex == 0 && settings.character < 0.f)
         {
             for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
             {
@@ -177,6 +189,36 @@ void FilterEngine::process(juce::AudioBuffer<float>& buffer)
                         low += onePoleAlpha * (input - low);
                         samples[sample] = settings.mode == Mode::lowPass ? low : input - low;
                     }
+                }
+            }
+        }
+        else if (settings.character >= 0.f)
+        {
+            const auto stageCount = std::array<int, 4>{1, 1, 2, 4}[(size_t)juce::jlimit(0, 3, settings.slopeIndex)];
+            for (int bank = 0; bank < 3; ++bank)
+            {
+                for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
+                    morphBuffers[(size_t) bank].copyFrom(ch, offset, buffer, ch, offset, count);
+                auto morphBlock = juce::dsp::AudioBlock<float>(morphBuffers[(size_t) bank]).getSubBlock((size_t) offset, (size_t) count);
+                juce::dsp::ProcessContextReplacing<float> morphContext(morphBlock);
+                for (int stage = 0; stage < stageCount; ++stage)
+                    morphStages[(size_t) bank][(size_t) stage].process(morphContext);
+            }
+            const auto position = juce::jlimit(0.f, 1.f, settings.character) * 3.f;
+            const auto segment = juce::jmin(2, (int) std::floor(position));
+            const auto fraction = position - (float) segment;
+            for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
+            {
+                auto* output = buffer.getWritePointer(ch, offset);
+                const auto* low = morphBuffers[0].getReadPointer(ch, offset);
+                const auto* band = morphBuffers[1].getReadPointer(ch, offset);
+                const auto* high = morphBuffers[2].getReadPointer(ch, offset);
+                for (int sample = 0; sample < count; ++sample)
+                {
+                    const auto notch = (low[sample] + high[sample]) * 0.7071f;
+                    const std::array<float, 4> anchors{low[sample], band[sample], notch, high[sample]};
+                    output[sample] = anchors[(size_t) segment] * (1.f - fraction)
+                                   + anchors[(size_t) segment + 1] * fraction;
                 }
             }
         }
