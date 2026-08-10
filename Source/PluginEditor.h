@@ -28,12 +28,12 @@ private:
         explicit ModularPanel(juce::AudioProcessorValueTreeState&);
         void paint(juce::Graphics&) override;
         void resized() override;
-        std::array<juce::Slider, 19> knobs;
-        std::array<juce::Label, 19> knobLabels;
+        std::array<juce::Slider, 21> knobs;
+        std::array<juce::Label, 21> knobLabels;
         std::array<juce::ComboBox, 4> selectors;
         std::array<juce::Label, 4> selectorLabels;
         std::array<juce::ToggleButton, 3> switches;
-        std::array<std::unique_ptr<SliderAttachment>, 19> knobAttachments;
+        std::array<std::unique_ptr<SliderAttachment>, 21> knobAttachments;
         std::array<std::unique_ptr<ComboAttachment>, 4> selectorAttachments;
         std::array<std::unique_ptr<ButtonAttachment>, 3> switchAttachments;
     };
