@@ -45,7 +45,7 @@ public:
     }
 
     void analyse(const juce::AudioBuffer<float>& buffer, float attackMs, float decayMs,
-                 float sustain, float releaseMs, float thresholdDb, float lfoRate, bool saw)
+                 float sustain, float releaseMs, float thresholdDb, float lfoRate, bool saw, bool midiGate)
     {
         float peak = 0.f;
         if (buffer.getNumChannels() > 0)
@@ -63,7 +63,7 @@ public:
                 previousSample = samples[i];
             }
         }
-        const auto gate = juce::Decibels::gainToDecibels(peak, -100.f) >= thresholdDb;
+        const auto gate = midiGate || juce::Decibels::gainToDecibels(peak, -100.f) >= thresholdDb;
         const auto target = gate ? (envelope < sustain ? 1.f : sustain) : 0.f;
         const auto timeMs = gate ? (target > envelope ? attackMs : decayMs) : releaseMs;
         const auto coefficient = std::exp(-(float) buffer.getNumSamples() / (juce::jmax(1.f, timeMs) * 0.001f * (float) sampleRate));
